@@ -1,24 +1,7 @@
 import re
 
-with open('jane_austen_complete.txt', 'r', encoding='utf-8') as file:
-    full_texts = file.read()
-
-
-# First get list of works from the file contents information
-contents = [
-    'PERSUASION',
-    'NORTHANGER ABBEY',
-    'MANSFIELD PARK',
-    'EMMA',
-    'LADY SUSAN',
-    'LOVE AND FRIENDSHIP',
-    'PRIDE AND PREJUDICE AND OTHER EARLY WORKS',
-    'SENSE AND SENSIBILITY',
-]
-
-
 # Find start of each work in the full text
-def find_start(work_name, text=full_texts):
+def find_start(work_name, text):
     title = re.findall(f'{work_name.upper()}', text)
     if title:
         start_index = text.index(title[0])
@@ -28,7 +11,7 @@ def find_start(work_name, text=full_texts):
     else:
         raise ValueError(f"Work '{work_name}' not found in the text.")
     
-def find_end(work_name, text=full_texts):
+def find_end(work_name, contents, text):
     next_work = contents[contents.index(work_name) + 1] if contents.index(work_name) + 1 < len(contents) else None
     if next_work:
         end_index = find_start(next_work, text)
@@ -36,9 +19,9 @@ def find_end(work_name, text=full_texts):
     else:
         return len(text)  # If it's the last work, return the end of the text
 
-def extract_work(work_name, text=full_texts):
+def extract_work(work_name, contents, text):
     start_index = find_start(work_name, text)
-    end_index = find_end(work_name, text)
+    end_index = find_end(work_name, contents, text)
     return text[start_index:end_index].strip()
 
 def extract_chapter(work, chapter_number=1):
@@ -49,9 +32,39 @@ def extract_chapter(work, chapter_number=1):
         return chapters[chapter_number].strip()
     else:
         raise ValueError(f"Chapter {chapter_number} does not exist in the work.")
-    
-    
-persuasion = extract_work('PERSUASION')
-persuasion_ch1 = extract_chapter(persuasion, 1)
-print(persuasion_ch1[:100])
 
+
+def read_austen_chapter(work_name, chapter_number=1):
+    """
+    Read a specific work by Jane Austen and return the specified chapter.
+    
+    :param work_name: Name of the work (e.g., 'PERSUASION', 'NORTHANGER ABBEY', etc.)
+    :param chapter_number: Chapter number to extract (default is 1)
+    :return: The text of the specified chapter
+    """
+    with open('data/jane_austen_complete.txt', 'r', encoding='utf-8') as file:
+        full_text = file.read()
+    contents = [
+        'PERSUASION',
+        'NORTHANGER ABBEY',
+        'MANSFIELD PARK',
+        'EMMA',
+        'LADY SUSAN',
+        'LOVE AND FRIENDSHIP',
+        'PRIDE AND PREJUDICE AND OTHER EARLY WORKS',
+        'SENSE AND SENSIBILITY',
+    ]
+    work_text = extract_work(work_name, contents, full_text)
+    del full_text  # Free memory
+    return extract_chapter(work_text, chapter_number)
+
+
+if __name__ == "__main__": 
+    # Example usage
+    try:
+        chapter_text = read_austen_chapter('PERSUASION', 24)
+        print(chapter_text)
+    except ValueError as e:
+        print(e)
+    except Exception as e:
+        print(f"An error occurred: {e}")
