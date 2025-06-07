@@ -1,10 +1,13 @@
+import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
 from sklearn.metrics import accuracy_score
-from dataloader.get_chapter import read_austen_chapter
+
+from dataloader.get_book_text import read_austen_chapter,read_austen_chapters, read_austen_work
 from dataloader.ngram_preprocess import prepare_ngram_dataset
+from model_testing.gen_text import generate_text
 
 torch.manual_seed(0)  # For reproducibility
 
@@ -56,43 +59,26 @@ def evaluate_model(model, data_loader):
     print(f'Accuracy: {accuracy:.4f}')
 
 
-def generate_text(model, start_words, word2idx, idx2word, n=2, max_length=50):
-    print(f"Prompt: {' '.join(start_words)}")
-    model.eval()
-    generated_text = start_words.copy()
-    for _ in range(max_length - len(start_words)):
-        # Prepare input tensor from the last n words
-        #TODO: Add padding if the length of generated_text is less than n
-        # Probably a good idea to add padding to vocab
-        input_tensor = torch.tensor([word2idx[word] for word in generated_text[-n+1:]], dtype=torch.long)
-
-        # Add batch dimension
-        #input_tensor = input_tensor.unsqueeze(0)
-
-        # Get model predictions
-        with torch.no_grad():
-            predictions = model(input_tensor)
-            #print(f"Predictions: {predictions}, len: {len(predictions)}")
-            pred_label = torch.argmax(predictions, dim=1).item()
-            generated_text.append(idx2word[pred_label])
-
-    print(' '.join(generated_text))
-
-
-
 def main():
     # Example usage
     work_name = 'PERSUASION'
-    chapter_number = 1
-    print(f'Reading chapter {chapter_number} of {work_name}')
-    chapter_text = read_austen_chapter(work_name, chapter_number)
+    chapter_range = (1, 5)  # Read chapters 1 to 5
+    text = read_austen_chapters(work_name, chapter_range)
+    print(f"Read {work_name} chapters {chapter_range[0]}-{chapter_range[1]}:\n{text[:500]}...")  # Print first 500 characters
     
     # Prepare the n-gram dataset
     n = 2  # Bigram
     print(f'Preparing {n}-gram dataset')
-    features, targets, word2idx, idx2word = prepare_ngram_dataset(chapter_text, n=n)
-    print(features.reshape(-1).shape, targets.shape)
+    features, targets, word2idx, idx2word = prepare_ngram_dataset(text, n=n)
+    #print(features.reshape(-1).shape, targets.shape)
     vocab_size = len(word2idx)
+
+    print(f"Saving w2idx and idx2word to json file")
+    # Save to same json file as dict of dictionaries
+    with open('trained_models/bigram_vocab.json', 'w') as f:
+        # Want to save idx2word keys as integers, not strings
+        json.dump({'word2idx': word2idx, 'idx2word': idx2word}, f)
+
 
     print(f"Initializing Bigram model with vocabulary size: {vocab_size}")
     model = BigramModel(vocab_size=vocab_size)
@@ -105,7 +91,8 @@ def main():
     generate_text(model, start_words, word2idx, idx2word, n=n, max_length=10)
 
     # Train the model
-    train_model(model, features.reshape(-1), targets, num_epochs=50)
+    train_model(model, features.reshape(-1), targets, num_epochs=100)
+    torch.save(model.state_dict(), 'trained_models/bigram_model.pth')
     
     # Now that the model is trained, we can generate text
     print("Generating text with trained model:")
