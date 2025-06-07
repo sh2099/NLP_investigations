@@ -2,6 +2,7 @@ import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
 
 from sklearn.metrics import accuracy_score
 
@@ -27,22 +28,33 @@ class BigramModel(nn.Module):
         return x
 
 
-def train_model(model, features, targets, num_epochs=50, learning_rate=0.01):
+def create_dataloader(features, targets, batch_size=32):
+    """
+    Create a DataLoader for the features and targets.
+    """
+    dataset = TensorDataset(torch.tensor(features, dtype=torch.long), torch.tensor(targets, dtype=torch.long))
+    return DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+
+def train_model(model, dataloader, num_epochs=50, learning_rate=0.01):
     criterion = nn.CrossEntropyLoss()
     optimiser = optim.Adam(model.parameters(), lr=learning_rate)
     model.train()
-
     for epoch in range(num_epochs):
-        optimiser.zero_grad()
-        outputs = model(features)
-        # CrossEntropyLoss expects raw logits, not probabilities
-    
-        loss = criterion(outputs, targets)
-        loss.backward()
-        optimiser.step()
+        total_loss = 0.0
+        for features, targets in dataloader:
+            features = features.view(-1)  # Flatten the input for bigram model
+            # Zero the gradients    
+            optimiser.zero_grad()
+            outputs = model(features)
+            loss = criterion(outputs, targets)
+            loss.backward()
+            optimiser.step()
+            total_loss += loss.item()
 
+        total_loss /= len(dataloader)
         if (epoch + 1) % 10 == 0:
-            print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
+            print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {total_loss:.4f}')
 
 
 def evaluate_model(model, data_loader):
@@ -62,7 +74,7 @@ def evaluate_model(model, data_loader):
 def main():
     # Example usage
     work_name = 'PERSUASION'
-    chapter_range = (1, 5)  # Read chapters 1 to 5
+    chapter_range = (1, 20)  # Read chapters 1 to 5
     text = read_austen_chapters(work_name, chapter_range)
     print(f"Read {work_name} chapters {chapter_range[0]}-{chapter_range[1]}:\n{text[:500]}...")  # Print first 500 characters
     
@@ -79,6 +91,8 @@ def main():
         # Want to save idx2word keys as integers, not strings
         json.dump({'word2idx': word2idx, 'idx2word': idx2word}, f)
 
+    print("Creating DataLoader")
+    dataloader = create_dataloader(features, targets, batch_size=32)
 
     print(f"Initializing Bigram model with vocabulary size: {vocab_size}")
     model = BigramModel(vocab_size=vocab_size)
@@ -91,7 +105,7 @@ def main():
     generate_text(model, start_words, word2idx, idx2word, n=n, max_length=10)
 
     # Train the model
-    train_model(model, features.reshape(-1), targets, num_epochs=100)
+    train_model(model, dataloader, num_epochs=100)
     torch.save(model.state_dict(), 'trained_models/bigram_model.pth')
     
     # Now that the model is trained, we can generate text
