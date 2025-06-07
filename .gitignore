@@ -1,2 +1,5 @@
 # Ignore all pycache files
 __pycache__/
+
+# Ignore trained models folder for now
+trained_models/
