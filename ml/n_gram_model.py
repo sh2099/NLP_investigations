@@ -1,117 +1,35 @@
-import json
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
-
-from sklearn.metrics import accuracy_score
-
-from dataloader.get_book_text import read_austen_chapter,read_austen_chapters, read_austen_work
-from dataloader.ngram_preprocess import prepare_ngram_dataset
-from model_testing.gen_text import generate_text
-
-torch.manual_seed(0)  # For reproducibility
-
-class BigramModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim=64):
-        super(BigramModel, self).__init__()
-        self.vocab_size = vocab_size
-        self.embedding_dim = embedding_dim
-        # Embed the input into a continuous space
-        self.embeddings = nn.Embedding(num_embeddings=vocab_size, embedding_dim=embedding_dim)
-        # Want to map back to vocabulary
-        self.linear = nn.Linear(embedding_dim, vocab_size)
-
-    def forward(self, x):
-        x = self.embeddings(x)  # Convert input indices to embeddings
-        x = self.linear(x)
-        return x
+import torch.nn.functional as F
 
 
-def create_dataloader(features, targets, batch_size=32):
+class NGramModel(nn.Module):
     """
-    Create a DataLoader for the features and targets.
+    An n-gram language model using PyTorch.
+
+    This model takes the previous (n-1) tokens and predicts the next (nth) token.
+
+    Args:
+        vocab_size (int): Number of unique tokens in the vocabulary.
+        embedding_dim (int): Dimensionality of token embeddings.
+        context_size (int): Number of context tokens (default: 3 for 4-gram).
+        hidden_dim (int): Number of units in the hidden linear layer.
     """
-    dataset = TensorDataset(torch.tensor(features, dtype=torch.long), torch.tensor(targets, dtype=torch.long))
-    return DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    def __init__(self, vocab_size: int, embedding_dim: int=64, n: int = 3, hidden_dim: int = 128) :
+        super(NGramModel, self).__init__()
+        self.n = n
+        self.context_size = n-1
+        # A simple feed-forward network: embed -> hidden -> output
+        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
+        self.linear1 = nn.Linear((n - 1) * embedding_dim, hidden_dim)
+        self.linear2 = nn.Linear(hidden_dim, vocab_size)
 
-
-def train_model(model, dataloader, num_epochs=50, learning_rate=0.01):
-    criterion = nn.CrossEntropyLoss()
-    optimiser = optim.Adam(model.parameters(), lr=learning_rate)
-    model.train()
-    for epoch in range(num_epochs):
-        total_loss = 0.0
-        for features, targets in dataloader:
-            features = features.view(-1)  # Flatten the input for bigram model
-            # Zero the gradients    
-            optimiser.zero_grad()
-            outputs = model(features)
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimiser.step()
-            total_loss += loss.item()
-
-        total_loss /= len(dataloader)
-        if (epoch + 1) % 10 == 0:
-            print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {total_loss:.4f}')
-
-
-def evaluate_model(model, data_loader):
-    model.eval()
-    all_preds = []
-    all_targets = []
-    with torch.no_grad():
-        for inputs, targets in data_loader:
-            outputs = model(inputs)
-            _, preds = torch.max(outputs, 1)
-            all_preds.extend(preds.cpu().numpy())
-            all_targets.extend(targets.cpu().numpy())
-    accuracy = accuracy_score(all_targets, all_preds)
-    print(f'Accuracy: {accuracy:.4f}')
-
-
-def main():
-    # Example usage
-    work_name = 'PERSUASION'
-    chapter_range = (1, 20)  # Read chapters 1 to 5
-    text = read_austen_chapters(work_name, chapter_range)
-    print(f"Read {work_name} chapters {chapter_range[0]}-{chapter_range[1]}:\n{text[:500]}...")  # Print first 500 characters
-    
-    # Prepare the n-gram dataset
-    n = 2  # Bigram
-    print(f'Preparing {n}-gram dataset')
-    features, targets, word2idx, idx2word = prepare_ngram_dataset(text, n=n)
-    #print(features.reshape(-1).shape, targets.shape)
-    vocab_size = len(word2idx)
-
-    print(f"Saving w2idx and idx2word to json file")
-    # Save to same json file as dict of dictionaries
-    with open('trained_models/bigram_vocab.json', 'w') as f:
-        # Want to save idx2word keys as integers, not strings
-        json.dump({'word2idx': word2idx, 'idx2word': idx2word}, f)
-
-    print("Creating DataLoader")
-    dataloader = create_dataloader(features, targets, batch_size=32)
-
-    print(f"Initializing Bigram model with vocabulary size: {vocab_size}")
-    model = BigramModel(vocab_size=vocab_size)
-    print(model)
-    
-    # Make some pre-training predictions
-    print("Generating text with untrained model:")
-     # Example: Generate text starting with 'it is'
-    start_words = ['there', 'was']  # Example starting words
-    generate_text(model, start_words, word2idx, idx2word, n=n, max_length=10)
-
-    # Train the model
-    train_model(model, dataloader, num_epochs=100)
-    torch.save(model.state_dict(), 'trained_models/bigram_model.pth')
-    
-    # Now that the model is trained, we can generate text
-    print("Generating text with trained model:")
-    generate_text(model, start_words, word2idx, idx2word, n=n, max_length=10)
-
-
-if __name__ == "__main__":
-    main()
+    def forward(self, inputs: torch.LongTensor) -> torch.Tensor:
+        # Get embeddings: [batch_size, context_size, embedding_dim]
+        embeds = self.embeddings(inputs)
+        # Flatten context embeddings: [batch_size, context_size * embedding_dim]
+        concat = embeds.view(inputs.size(0), -1)
+        hidden = F.relu(self.linear1(concat))
+        logits = self.linear2(hidden)
+        logits = F.log_softmax(logits, dim=1)  # Apply log softmax to get log probabilities
+        return logits
