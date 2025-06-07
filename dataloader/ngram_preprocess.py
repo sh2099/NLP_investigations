@@ -13,6 +13,7 @@ def clean_and_tokenise(text: str) -> list:
     tokens = cleaned_text.split()  # Split by whitespace
     return tokens
 
+
 def create_vocab(tokens: list) -> list:
     """
     Create a vocabulary from the list of tokens.
@@ -23,12 +24,24 @@ def create_vocab(tokens: list) -> list:
     idx2word = {idx: word for word, idx in word2idx.items()}
     return word2idx, idx2word
 
+
+def save_vocab(word2idx: dict, idx2word: dict, n: int = 4) -> None:
+    """
+    Save the vocabulary mappings to a JSON file.
+    """
+    vocab_data = {'word2idx': word2idx, 'idx2word': idx2word}
+    with open(f'trained_models/{n}-gram_vocab.json', 'w') as f:
+        json.dump(vocab_data, f)
+    print(f"Vocabulary saved to trained_models/{n}-gram_vocab.json")
+
+
 def tokenise_w_ids(tokens: list, word2idx: dict) -> list:
     """
     Map the tokens to their corresponding indices in the vocabulary.
     """
     tokenised_id_text = [word2idx.get(token, -1) for token in tokens]  # Use -1 for unknown tokens
     return tokenised_id_text
+
 
 def create_ngrams(token_ids: list, n: int = 2) -> np.ndarray:
     """
