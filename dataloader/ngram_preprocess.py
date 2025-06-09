@@ -33,7 +33,7 @@ def save_vocab(word2idx: dict, idx2word: dict, vocab_path: str = 'austen_no_p&p'
     vocab_data = {'word2idx': word2idx, 'idx2word': idx2word}
     with open(f'vocab_dicts/{vocab_path}.json', 'w') as f:
         json.dump(vocab_data, f)
-    print(f"Vocabulary saved to trained_models/{n}-gram_vocab.json")
+    print(f"Vocabulary saved to 'vocab_dicts/{vocab_path}.json'")
 
 
 def load_vocab(vocab_path: str = 'austen_no_p&p') -> tuple:
