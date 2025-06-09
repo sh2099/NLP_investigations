@@ -35,6 +35,7 @@ def find_end(work_name: str, contents: list, text: str) -> int:
     else:
         return len(text)  # If it's the last work, return the end of the text
 
+
 def extract_work(work_name: str, contents: list, text: str) -> str:
     """
     Extract the text of a specific work by Jane Austen from the full text.
@@ -43,11 +44,17 @@ def extract_work(work_name: str, contents: list, text: str) -> str:
     end_index = find_end(work_name, contents, text)
     return text[start_index:end_index].strip()
 
+
 def extract_chapter(work: str, chapter_number: int = 1) -> str:
     """
     Extract a specific chapter from a work by Jane Austen.
     """
-    chapters = re.split(r'\n\s*Chapter \d+\s*\n', work)
+    # Some books have chapters in lower case, some in upper case.
+    work = re.sub(r'\bCHAPTER\b', 'Chapter', work, flags=re.IGNORECASE)
+    # Now split based on the normalized chapter headings
+    # Use a regex that captures possible Roman numerals or digits after 'Chapter'
+    chapters = re.split(r'\n\s*Chapter\s+[\dIVXLCDM]+\b\.?\s*\n?', work, flags=re.IGNORECASE)
+    #print(len(chapters), chapters[-1])
     if chapter_number <= len(chapters):
         # Chapter 0 is intro/preface which we skip
         return chapters[chapter_number].strip()
@@ -96,9 +103,17 @@ def read_austen_work(work_name: str, contents: list = austen_contents) -> str:
 if __name__ == "__main__": 
     # E.g. read the first chapter of PERSUASION
     try:
-        chapter_texts = read_austen_chapters('PERSUASION', (1, 3))
-        print(chapter_texts)
+        chapter_texts = read_austen_chapters('EMMA', (1, 3))
+        #print(chapter_texts)
     except ValueError as e:
         print(e)
     except Exception as e:
         print(f"An error occurred: {e}")
+
+    """
+    with open('data/jane_austen_complete.txt', 'r', encoding='utf-8') as file:
+        full_text = file.read()
+    start_index = find_end('EMMA', contents=austen_contents, text=full_text)
+    full_text = full_text[start_index-100:start_index + 100]  # Limit to first 1000 characters for testing
+    print(full_text)
+    """
