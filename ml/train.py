@@ -5,7 +5,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
 from dataloader.get_book_text import read_austen_chapter,read_austen_chapters, read_austen_work
-from dataloader.ngram_preprocess import prepare_ngram_dataset, save_vocab
+from dataloader.ngram_preprocess import prepare_ngram_dataset, save_vocab, load_vocab
 from model_testing.gen_text import generate_text_n_gram
 from ml.n_gram_model import NGramModel
 
@@ -51,11 +51,12 @@ def train_and_save(model: nn.Module,
         num_epochs: int = 50, 
         learning_rate: float = 0.01, 
         n: int = 4,
+        work: str = 'PERSUASION'
     ) -> None:
     """
     Train the n-gram model and save it to a file.
     """
-    model_path = f'trained_models/{n}-gram_model.pth'
+    model_path = f'trained_models/{n}-gram_model_{work.lower()}.pth'
     train_model(model, dataloader, num_epochs, learning_rate)
     torch.save(model.state_dict(), model_path)
     print(f"Model saved to {model_path}")
@@ -65,6 +66,7 @@ def train_and_save(model: nn.Module,
 def load_chapters_and_train_ngram(work: str, 
                                   chapter_range: tuple = (1, 5), 
                                   n: int = 4, 
+                                  num_epochs: int = 50,
                                   prompt: str = 'he turned over the',
                                   ) -> tuple:
     """
@@ -72,10 +74,11 @@ def load_chapters_and_train_ngram(work: str,
     """
     # === Load chapters and create mappings ===
     text = read_austen_chapters(work, chapter_range)
-    features, targets, word2idx, idx2word = prepare_ngram_dataset(text, n=n)
+    word2idx, idx2word = load_vocab(f'{work.lower()}')  # Load existing vocab or create new one
+    features, targets,  = prepare_ngram_dataset(text, n=n, word2idx=word2idx)
     vocab_size = len(word2idx)
     print(f"Vocabulary size: {vocab_size}")
-    save_vocab(word2idx, idx2word, n)
+    save_vocab(word2idx, idx2word, vocab_path=f'{work.lower()}')
 
     # === Create DataLoader and initalise Model ===
     dataloader = create_dataloader(features, targets)
@@ -84,19 +87,20 @@ def load_chapters_and_train_ngram(work: str,
 
     # === Train the model and generate text ===
     print("Generating text with untrained model:")
-    generate_text_n_gram(model, prompt.split(), word2idx, idx2word, max_length=10)
-    train_and_save(model, dataloader, n=n)
+    generate_text_n_gram(model, prompt, word2idx, idx2word, max_length=10)
+    train_and_save(model, dataloader,num_epochs=num_epochs, n=n, work=work)
     print("Generating text with trained model:")
-    generate_text_n_gram(model, prompt.split(), word2idx, idx2word, max_length=10)
+    generate_text_n_gram(model, prompt, word2idx, idx2word, max_length=10)
 
 def main():
     work_name = 'PERSUASION'
-    chapter_range = (1, 5)
-    n = 4
+    chapter_range = (1, 24)
+    n = 5
+    num_epochs = 100
     prompt = 'he turned over the'
     
     # Load chapters and train the n-gram model
-    load_chapters_and_train_ngram(work_name, chapter_range, n, prompt)
+    load_chapters_and_train_ngram(work_name, chapter_range, n,num_epochs, prompt)
 
 if __name__ == "__main__":
     main()
