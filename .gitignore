@@ -3,3 +3,6 @@ __pycache__/
 
 # Ignore trained models folder for now
 trained_models/
+
+data/
+vocab_dicts/
