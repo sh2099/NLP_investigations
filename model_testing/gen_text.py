@@ -46,22 +46,22 @@ def generate_text_n_gram(model: torch.nn.Module,
             _, pred_label = torch.max(predictions, dim=1)
             #pred_label = torch.argmax(predictions, dim=1).item()
             generated_text.append(idx2word[pred_label.item()])
-            
+
     print(' '.join(generated_text))
 
 
 def main():
     # Load the model and vocabulary
     from ml.n_gram_model import NGramModel
-    n = 4
-    model_path = f'trained_models/{n}-gram_model.pth'
-    vocab_path = f'trained_models/{n}-gram_vocab.json'
+    n = 5
+    model_path = f'trained_models/{n}-gram_model_persuasion.pth'
+    vocab_path = f'vocab_dicts/persuasion.json'
     model, word2idx, idx2word = load_model_and_vocab(NGramModel, n, model_path, vocab_path)
     #print(idx2word[2292])
 
     # Example usage
     start_prompt = 'he turned over the' 
-    start_words = start_prompt.split()  # Split the prompt into words
+    start_words = start_prompt  # Split the prompt into words
     max_length = 300  # Generate up to 50 words
 
     generate_text_n_gram(model, start_words, word2idx, idx2word, max_length=max_length)
