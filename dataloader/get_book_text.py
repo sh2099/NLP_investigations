@@ -24,7 +24,7 @@ def find_start(work_name: str, text: str) -> int:
     else:
         raise ValueError(f"Work '{work_name}' not found in the text.")
     
-def find_end(work_name: str, contents: list, text: str) -> int:
+def find_end(work_name: str, text: str, contents: list = austen_contents) -> int:
     """
     Find the end of a work in the text by looking for the next work in the contents.
     """
