@@ -1,8 +1,9 @@
 import json
 import numpy as np
 import re
+import torch
 
-from dataloader.get_book_text import read_austen_chapter, find_start
+from dataloader.get_book_text import read_austen_chapter, find_start, find_end
 
 
 def clean_and_tokenise(text: str) -> list:
@@ -14,7 +15,7 @@ def clean_and_tokenise(text: str) -> list:
     # replace everything except letters/digits/underscore/space/apostrophe with space
     text = re.sub(r"[^a-z0-9\s']", " ", text)
     # 3) remove any apostrophes that are not between two alphanumeric chars
-    text = re.sub(r"(?<![a-z0-9])'|'(?![a-z0-9])", " ", text)
+    #text = re.sub(r"(?<![a-z0-9])'|'(?![a-z0-9])", " ", text)
     # collapse multiple spaces and trim
     text = re.sub(r"\s+", " ", text).strip()
     # split on whitespace
@@ -95,15 +96,71 @@ def prepare_ngram_dataset(text: str, n: int = 2, word2idx: dict = None) -> tuple
     return features, targets
 
 
+def split_text_train_test_eval(text: str, train_ratio: float = 0.8, test_ratio: float = 0.1, path:str = 'persuasion') -> tuple:
+    """
+    Split the text into training, testing, and evaluation sets.
+    """
+    eval_ratio = 1 - train_ratio - test_ratio
+    if eval_ratio < 0:
+        raise ValueError("Train ratio + Test ratio must be less than or equal to 1.")
+    tokenised_text = clean_and_tokenise(text)
+    length = len(tokenised_text)
+    train_end = int(length * train_ratio)
+    test_end = int(length * (train_ratio + test_ratio))
+    
+    train_text = ' '.join(tokenised_text[:train_end])
+    test_text = ' '.join(tokenised_text[train_end:test_end])
+    eval_text = ' '.join(tokenised_text[test_end:])
+
+    # Save the splits to dict in file
+    with open(f'data/split_texts_{path}.json', 'w') as f:
+        json.dump({
+            'train': train_text,
+            'test': test_text,
+            'eval': eval_text
+        }, f, indent=4)
+
+    return train_text, test_text, eval_text
+
+
+def split_and_tokenise_text(text: str, n: int = 2, word2idx: dict = None) -> tuple:
+    """
+    Split the text into training, testing, and evaluation sets,
+    then prepare the n-gram dataset for each split.
+    """
+    train_text, test_text, eval_text = split_text_train_test_eval(text)
+    
+    train_features, train_targets = prepare_ngram_dataset(train_text, n=n, word2idx=word2idx)
+    test_features, test_targets = prepare_ngram_dataset(test_text, n=n, word2idx=word2idx)
+    eval_features, eval_targets = prepare_ngram_dataset(eval_text, n=n, word2idx=word2idx)
+
+    # Save the splits to dict in file
+    np.savez_compressed(
+        f'data/split_ngram_data_{n}_gram.npz',
+        train_features=train_features,
+        train_targets=train_targets,
+        test_features=test_features,
+        test_targets=test_targets,
+        eval_features=eval_features,
+        eval_targets=eval_targets
+    )
+
+    return #(train_features, train_targets), (test_features, test_targets), (eval_features, eval_targets)
+
+
 def main():
     # Create global austen vocab - need for training across all texts
     with open('data/jane_austen_complete.txt', 'r', encoding='utf-8') as file:
         full_text = file.read()
     start_index = find_start('PERSUASION', text=full_text)
-    full_text = full_text[start_index:]  # Start from the beginning of PERSUASION
-    tokens = clean_and_tokenise(full_text)
+    end_index = find_end('PERSUASION', text=full_text)
+    persuasion = full_text[start_index:end_index]  # Start from the beginning of PERSUASION
+    tokens = clean_and_tokenise(persuasion)
     word2idx, idx2word = create_vocab(tokens)
-    save_vocab(word2idx, idx2word, vocab_path='austen_full_vocab')
+    save_vocab(word2idx, idx2word, vocab_path='persuasion')
+    # Prepare n-gram dataset for PERSUASION
+    n = 5
+    split_and_tokenise_text(persuasion, n=n, word2idx=word2idx)
 
 if __name__ == "__main__":
     main()
