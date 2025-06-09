@@ -2,17 +2,23 @@ import json
 import numpy as np
 import re
 
-from dataloader.get_book_text import read_austen_chapter
+from dataloader.get_book_text import read_austen_chapter, find_start
 
 
 def clean_and_tokenise(text: str) -> list:
     """
-    Clean the text to extract lower case words with no punctuation,
-    then split into individual words to act as tokens.
+    Lowercase, strip out punctuation (but keep internal apostrophes),
+    collapse whitespace, and split into tokens.
     """
-    cleaned_text = re.sub(r'[^\w\s]', '', text.lower())  # Remove punctuation and lowercase
-    tokens = cleaned_text.split()  # Split by whitespace
-    return tokens
+    text = text.lower()
+    # replace everything except letters/digits/underscore/space/apostrophe with space
+    text = re.sub(r"[^a-z0-9\s']", " ", text)
+    # 3) remove any apostrophes that are not between two alphanumeric chars
+    text = re.sub(r"(?<![a-z0-9])'|'(?![a-z0-9])", " ", text)
+    # collapse multiple spaces and trim
+    text = re.sub(r"\s+", " ", text).strip()
+    # split on whitespace
+    return text.split()
 
 
 def create_vocab(tokens: list) -> list:
@@ -70,33 +76,34 @@ def create_ngrams(token_ids: list, n: int = 2) -> np.ndarray:
     return np.array(ngrams)
 
 
-def prepare_ngram_dataset(text: str, n: int = 2) -> tuple:
+def prepare_ngram_dataset(text: str, n: int = 2, word2idx: dict = None) -> tuple:
     """
-    Prepare a dataset of n-grams from the input text.
+    Prepare a n-gram features and labels from the input text.
     """
     tokens = clean_and_tokenise(text)
-    word2idx, idx2word = create_vocab(tokens)
-    token_ids = tokenise_w_ids(tokens, word2idx)
+    if word2idx is not None:
+        token_ids = tokenise_w_ids(tokens, word2idx)
+    else:
+        word2idx, idx2word = create_vocab(tokens)
+        save_vocab(word2idx, idx2word, vocab_path='vocab_{n}_gram')
+        token_ids = tokenise_w_ids(tokens, word2idx)
+
     ngrams = create_ngrams(token_ids, n=n)
 
     features = ngrams[:,:-1]  # All but the last n-gram
     targets = ngrams[:,-1]  # Predict the next word given the previous n-1 words
-    return features, targets, word2idx, idx2word
+    return features, targets
 
 
 def main():
-    work_name = 'PERSUASION'
-    chapter_number = 1
-    chapter_text = read_austen_chapter(work_name, chapter_number)
-
-    # Prepare the n-gram dataset
-    n = 4
-    features, targets, word2idx, idx2word = prepare_ngram_dataset(chapter_text, n=n)
-
-    print("Features (N-1)grams):", features[:10])
-    print("Targets (Next words):", targets[:10])
-    #print("Vocabulary:", word2idx)
-
+    # Create global austen vocab - need for training across all texts
+    with open('data/jane_austen_complete.txt', 'r', encoding='utf-8') as file:
+        full_text = file.read()
+    start_index = find_start('PERSUASION', text=full_text)
+    full_text = full_text[start_index:]  # Start from the beginning of PERSUASION
+    tokens = clean_and_tokenise(full_text)
+    word2idx, idx2word = create_vocab(tokens)
+    save_vocab(word2idx, idx2word, vocab_path='austen_full_vocab')
 
 if __name__ == "__main__":
     main()
