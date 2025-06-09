@@ -26,14 +26,27 @@ def create_vocab(tokens: list) -> list:
     return word2idx, idx2word
 
 
-def save_vocab(word2idx: dict, idx2word: dict, n: int = 4) -> None:
+def save_vocab(word2idx: dict, idx2word: dict, vocab_path: str = 'austen_no_p&p') -> None:
     """
     Save the vocabulary mappings to a JSON file.
     """
     vocab_data = {'word2idx': word2idx, 'idx2word': idx2word}
-    with open(f'trained_models/{n}-gram_vocab.json', 'w') as f:
+    with open(f'vocab_dicts/{vocab_path}.json', 'w') as f:
         json.dump(vocab_data, f)
     print(f"Vocabulary saved to trained_models/{n}-gram_vocab.json")
+
+
+def load_vocab(vocab_path: str = 'austen_no_p&p') -> tuple:
+    """
+    Load the vocabulary mappings from a JSON file.
+    """
+    with open(f'vocab_dicts/{vocab_path}.json', 'r') as f:
+        vocab_data = json.load(f)
+    word2idx = vocab_data['word2idx']
+    idx2word = vocab_data['idx2word']
+    # Convert idx2word keys to integers
+    idx2word = {int(k): v for k, v in idx2word.items()}
+    return word2idx, idx2word
 
 
 def tokenise_w_ids(tokens: list, word2idx: dict) -> list:
