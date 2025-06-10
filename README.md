@@ -12,6 +12,8 @@ These methods cannot compete with the modern advancements of transformer based m
 
 ## N-gram models
 
+Can N-gram models write a Jane Austen Novel?
+
 N-gram models are basic probability based models, which predict the nth token given the previous n-1 tokens. They essentially store probabilities of given n-sequences, which are learned from the frequencies of the sequence occuring in the text the model is trained on. Text is then generated based on the 'most seen' n-sequence.\
 These models have a few large issues which prevent them from performing well:
   - No deep understanding of semantic structure - in real text specific words should be paid more attention to, whereas others can be ignored
