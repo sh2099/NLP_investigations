@@ -74,3 +74,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+#### TODO: Lots of datasets will arise given each split of different n-grams.
+# May be better to just save the vocab and the raw text split into train/test/eval.
+# Then create the n-grams on-the-fly when training.
