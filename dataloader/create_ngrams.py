@@ -1,9 +1,6 @@
-import json
 import numpy as np
 from pathlib import Path
-import re
 
-from dataloader.get_book_text import find_start, find_end
 from dataloader.tokenise import clean_and_tokenise
 from dataloader.vocab import Vocab
 
@@ -47,36 +44,3 @@ def prepare_ngram_dataset(text: str,
     features = ngrams[:,:-1]  # All but the last n-gram
     targets = ngrams[:,-1]  # Predict the next word given the previous n-1 words
     return features, targets, vocab
-
-
-def main():
-    # 1) read full Austen text, extract "Emma"
-    with open('data/jane_austen_complete.txt', 'r', encoding='utf-8') as f:
-        full = f.read()
-    start = find_start('EMMA', text=full)
-    end   = find_end(  'EMMA', text=full)
-    persuasion = full[start:end]
-    del full
-
-    # 2) build & save vocab on Persuasion
-    tokens = clean_and_tokenise(persuasion)
-    vocab  = Vocab(tokens)
-    vocab.save('emma')
-
-    # 3) create & save 5-gram splits (+ get the final vocab object back)
-    from dataloader.split_tokens import split_and_tokenise_text
-    split_and_tokenise_text(
-        text       = persuasion,
-        n          = 5,
-        vocab      = vocab,
-        vocab_path = 'emma'
-    )
-
-if __name__ == "__main__":
-    main()
-
-
-
-#### TODO: Lots of datasets will arise given each split of different n-grams.
-# May be better to just save the vocab and the raw text split into train/test/eval.
-# Then create the n-grams on-the-fly when training.

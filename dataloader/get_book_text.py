@@ -41,7 +41,7 @@ def extract_work(work_name: str, contents: list, text: str) -> str:
     Extract the text of a specific work by Jane Austen from the full text.
     """
     start_index = find_start(work_name, text)
-    end_index = find_end(work_name, contents, text)
+    end_index = find_end(work_name, text, contents)
     return text[start_index:end_index].strip()
 
 

@@ -20,11 +20,11 @@ class Vocab:
         with open(vocab_path, 'w') as f:
             # Save the vocabulary data as JSON
             json.dump(vocab_data, f, indent=2)
-        #print(f"Vocabulary saved to 'vocab_dicts/{vocab_path}.json'")
+            #print(f"Vocabulary saved to 'vocab_dicts/{vocab_path}.json'")
 
     @classmethod
     def load(cls, path: Path) -> "Vocab":
-        data = json.load(path.open('r'))
+        data = json.load(open(path, 'r'))
         v = cls.__new__(cls)
         v.word2idx = data['word2idx']
         v.idx2word = {int(k):v for k,v in data['idx2word'].items()}
