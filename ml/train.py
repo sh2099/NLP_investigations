@@ -5,7 +5,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
 from dataloader.get_book_text import read_austen_chapter,read_austen_chapters, read_austen_work
-from dataloader.ngram_preprocess import prepare_ngram_dataset, save_vocab, load_vocab
+from dataloader.create_ngrams import prepare_ngram_dataset
+from dataloader.vocab import Vocab
 from model_testing.gen_text import generate_text_n_gram
 from ml.n_gram_model import NGramModel
 
@@ -74,11 +75,11 @@ def load_chapters_and_train_ngram(work: str,
     """
     # === Load chapters and create mappings ===
     text = read_austen_chapters(work, chapter_range)
-    word2idx, idx2word = load_vocab(f'{work.lower()}')  # Load existing vocab or create new one
-    features, targets,  = prepare_ngram_dataset(text, n=n, word2idx=word2idx)
-    vocab_size = len(word2idx)
+    # Load pre-existing vocab
+    vocab = Vocab.load(f'vocab_dicts/{work.lower()}.json')
+    features, targets, _ = prepare_ngram_dataset(text, n=n, vocab=vocab)
+    vocab_size = len(vocab.word2idx)
     print(f"Vocabulary size: {vocab_size}")
-    save_vocab(word2idx, idx2word, vocab_path=f'{work.lower()}')
 
     # === Create DataLoader and initalise Model ===
     dataloader = create_dataloader(features, targets)
@@ -87,20 +88,20 @@ def load_chapters_and_train_ngram(work: str,
 
     # === Train the model and generate text ===
     print("Generating text with untrained model:")
-    generate_text_n_gram(model, prompt, word2idx, idx2word, max_length=10)
+    generate_text_n_gram(model, prompt, vocab.word2idx, vocab.idx2word, max_length=10)
     train_and_save(model, dataloader,num_epochs=num_epochs, n=n, work=work)
     print("Generating text with trained model:")
-    generate_text_n_gram(model, prompt, word2idx, idx2word, max_length=10)
+    generate_text_n_gram(model, prompt, vocab.word2idx, vocab.idx2word, max_length=10)
 
 def main():
     work_name = 'PERSUASION'
-    chapter_range = (1, 24)
+    chapter_range = (1, 5)
     n = 5
-    num_epochs = 100
+    num_epochs = 50
     prompt = 'he turned over the'
     
     # Load chapters and train the n-gram model
-    load_chapters_and_train_ngram(work_name, chapter_range, n,num_epochs, prompt)
+    load_chapters_and_train_ngram(work_name, chapter_range, n, num_epochs, prompt)
 
 if __name__ == "__main__":
     main()

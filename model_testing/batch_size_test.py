@@ -2,7 +2,7 @@ import torch
 
 from ml.n_gram_model import NGramModel
 from ml.train import create_dataloader, train_and_save
-from dataloader.ngram_preprocess import prepare_ngram_dataset
+from dataloader.create_ngrams import prepare_ngram_dataset
 from dataloader.get_book_text import read_austen_chapters
 from model_testing.gen_text import generate_text_n_gram
 
